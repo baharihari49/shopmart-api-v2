@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String              @id @default(uuid())
+  email             String              @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  avatar            String?
+  dateOfBirth       DateTime?
+  gender            Gender?
+  isVerified        Boolean             @default(false)
+  verificationToken String?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
+  lastLoginAt       DateTime?
+  preferences       Json                @default("{\"newsletter\":true,\"emailNotifications\":true,\"smsNotifications\":false,\"language\":\"en\",\"currency\":\"USD\",\"theme\":\"system\"}")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  addresses         Address[]
+  paymentMethods    PaymentMethod[]
+  orders            Order[]
+  reviews           Review[]
+  cart              Cart?
+  wishlist          Wishlist?
+  userBehavior      UserBehavior?
+  productViews      ProductView[]
+  searchQueries     SearchQuery[]
+  reviewHelpfulness ReviewHelpfulness[]
+  
+  @@map("users")
+}
+
+model Address {
+  id           String  @id @default(uuid())
+  userId       String
+  type         AddressType
+  isDefault    Boolean @default(false)
+  firstName    String
+  lastName     String
+  company      String?
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingOrders      Order[] @relation("ShippingAddress")
+  billingOrders       Order[] @relation("BillingAddress")
+  
+  @@map("addresses")
+}
+
+model PaymentMethod {
+  id          String      @id @default(uuid())
+  userId      String
+  type        PaymentType
+  last4       String?
+  brand       String?
+  expiryMonth Int?
+  expiryYear  Int?
+  isDefault   Boolean     @default(false)
+  isVerified  Boolean     @default(false)
+  stripePaymentMethodId String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+  
+  @@map("payment_methods")
+}
+
+model Category {
+  id          String      @id @default(uuid())
+  name        String
+  slug        String      @unique
+  description String?
+  parentId    String?
+  image       String?
+  isActive    Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  parent      Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[]  @relation("CategoryHierarchy")
+  products    Product[]
+  
+  @@map("categories")
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  logo        String?
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  products    Product[]
+  
+  @@map("brands")
+}
+
+model Product {
+  id             String    @id @default(uuid())
+  name           String
+  description    String
+  price          Decimal   @db.Decimal(10, 2)
+  originalPrice  Decimal?  @db.Decimal(10, 2)
+  sku            String    @unique
+  categoryId     String
+  brandId        String
+  images         Json      @default("[]")
+  specifications Json      @default("{}")
+  features       Json      @default("[]")
+  stockCount     Int       @default(0)
+  inStock        Boolean   @default(true)
+  badge          String?
+  rating         Decimal   @default(0) @db.Decimal(3, 2)
+  reviewCount    Int       @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  
+  // Relations
+  category       Category      @relation(fields: [categoryId], references: [id])
+  brand          Brand         @relation(fields: [brandId], references: [id])
+  reviews        Review[]
+  cartItems      CartItem[]
+  wishlistItems  WishlistItem[]
+  orderItems     OrderItem[]
+  productViews   ProductView[]
+  
+  @@map("products")
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String?    @unique
+  sessionId String?
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  // Relations
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  
+  @@map("carts")
+}
+
+model CartItem {
+  id          String   @id @default(uuid())
+  cartId      String
+  productId   String
+  quantity    Int
+  priceAtTime Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id        String         @id @default(uuid())
+  userId    String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  
+  // Relations
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String
+  productId  String
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+  
+  @@unique([wishlistId, productId])
+  @@map("wishlist_items")
+}
+
+model Order {
+  id                 String        @id @default(uuid())
+  userId             String
+  orderNumber        String        @unique
+  status             OrderStatus   @default(PENDING)
+  subtotal           Decimal       @db.Decimal(10, 2)
+  tax                Decimal       @db.Decimal(10, 2)
+  shipping           Decimal       @db.Decimal(10, 2)
+  discount           Decimal       @default(0) @db.Decimal(10, 2)
+  total              Decimal       @db.Decimal(10, 2)
+  shippingAddressId  String
+  billingAddressId   String
+  paymentMethodId    String
+  shippingMethodId   String
+  promoCodeId        String?
+  giftMessage        String?
+  trackingNumber     String?
+  estimatedDelivery  DateTime?
+  stripePaymentIntentId String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  
+  // Relations
+  user               User          @relation(fields: [userId], references: [id])
+  shippingAddress    Address       @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress     Address       @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  paymentMethod      PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  shippingMethod     ShippingMethod @relation(fields: [shippingMethodId], references: [id])
+  promoCode          PromoCode?    @relation(fields: [promoCodeId], references: [id])
+  items              OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  name      String
+  image     String
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+  total     Decimal @db.Decimal(10, 2)
+  variant   String?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model ShippingMethod {
+  id            String  @id @default(uuid())
+  name          String
+  description   String
+  price         Decimal @db.Decimal(10, 2)
+  estimatedDays String
+  icon          String?
+  isActive      Boolean @default(true)
+  sortOrder     Int     @default(0)
+  
+  // Relations
+  orders        Order[]
+  
+  @@map("shipping_methods")
+}
+
+model PromoCode {
+  id             String        @id @default(uuid())
+  code           String        @unique
+  type           PromoCodeType
+  value          Decimal       @db.Decimal(10, 2)
+  minOrderAmount Decimal?      @db.Decimal(10, 2)
+  description    String
+  usageLimit     Int?
+  usageCount     Int           @default(0)
+  startsAt       DateTime
+  expiresAt      DateTime
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  // Relations
+  orders         Order[]
+  
+  @@map("promo_codes")
+}
+
+model Review {
+  id            String              @id @default(uuid())
+  productId     String
+  userId        String
+  orderId       String?
+  rating        Int
+  title         String
+  comment       String
+  verified      Boolean             @default(false)
+  helpful       Int                 @default(0)
+  notHelpful    Int                 @default(0)
+  images        Json      @default("[]")
+  isApproved    Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  // Relations
+  product       Product             @relation(fields: [productId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
+  helpfulness   ReviewHelpfulness[]
+  
+  @@map("reviews")
+}
+
+model ReviewHelpfulness {
+  id        String   @id @default(uuid())
+  reviewId  String
+  userId    String
+  isHelpful Boolean
+  createdAt DateTime @default(now())
+  
+  // Relations
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([reviewId, userId])
+  @@map("review_helpfulness")
+}
+
+model UserBehavior {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  viewedProducts    Json     @default("[]")
+  purchasedProducts Json     @default("[]")
+  searchHistory     Json     @default("[]")
+  categoryInterests Json     @default("{}")
+  brandPreferences  Json     @default("{}")
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_behaviors")
+}
+
+model ProductView {
+  id        String   @id @default(uuid())
+  userId    String?
+  sessionId String?
+  productId String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  @@map("product_views")
+}
+
+model SearchQuery {
+  id           String   @id @default(uuid())
+  userId       String?
+  sessionId    String?
+  query        String
+  resultsCount Int
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("search_queries")
+}
+
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+enum PaymentType {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  BANK_TRANSFER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PromoCodeType {
+  PERCENTAGE
+  FIXED
+}
