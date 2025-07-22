@@ -36,12 +36,12 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "prisma/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "prisma/**/*"
   ]
 }
