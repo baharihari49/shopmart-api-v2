@@ -15,6 +15,7 @@ export class ProductService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
       inStock = 'true',
+      badge,
     } = query;
 
     const pageNum = parseInt(page);
@@ -54,6 +55,10 @@ export class ProductService {
         { name: { contains: search } },
         { description: { contains: search } },
       ];
+    }
+
+    if (badge) {
+      where.badge = badge;
     }
 
     // Build orderBy clause
@@ -155,6 +160,58 @@ export class ProductService {
     // Track product view
     if (userId) {
       await this.trackProductView(userId, id);
+    }
+
+    return product;
+  }
+
+  static async getProductBySlug(slug: string, userId?: string) {
+    const product = await prisma.product.findFirst({
+      where: {
+        slug,
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+          },
+        },
+        reviews: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
+
+    // Track product view if user is provided
+    if (userId) {
+      await this.trackProductView(userId, product.id);
     }
 
     return product;
@@ -377,6 +434,48 @@ export class ProductService {
       take: limit,
     });
 
+    // If no views in the last 7 days, fallback to popular products
+    if (productViews.length === 0) {
+      return await prisma.product.findMany({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          inStock: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          originalPrice: true,
+          images: true,
+          rating: true,
+          reviewCount: true,
+          inStock: true,
+          badge: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+        orderBy: [
+          { rating: 'desc' },
+          { reviewCount: 'desc' },
+        ],
+        take: limit,
+      });
+    }
+
     const productIds = productViews.map(pv => pv.productId);
 
     const products = await prisma.product.findMany({
@@ -388,6 +487,7 @@ export class ProductService {
       select: {
         id: true,
         name: true,
+        slug: true,
         price: true,
         originalPrice: true,
         images: true,
@@ -395,6 +495,20 @@ export class ProductService {
         reviewCount: true,
         inStock: true,
         badge: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
       },
     });
 

@@ -6,12 +6,14 @@ const router = Router();
 
 // Public routes (with optional auth)
 router.get('/', optionalAuth, productController.getProducts);
+router.get('/featured', optionalAuth, productController.getFeaturedProducts);
 router.get('/search', optionalAuth, productController.searchProducts);
 router.get('/autocomplete', productController.getProductAutocomplete);
 router.get('/trending', productController.getTrendingProducts);
 
 // Product-specific routes
 router.get('/:id', optionalAuth, productController.getProductById);
+router.get('/slug/:slug', optionalAuth, productController.getProductBySlug);
 router.post('/:id/view', optionalAuth, productController.trackProductView);
 router.get('/:id/reviews', productController.getProductReviews);
 router.get('/:id/recommendations', productController.getRelatedProducts);

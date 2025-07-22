@@ -26,6 +26,15 @@ export const getProductById = catchAsync(async (req: AuthRequest, res: Response)
   sendSuccess(res, 'Product retrieved successfully', product);
 });
 
+export const getProductBySlug = catchAsync(async (req: AuthRequest, res: Response) => {
+  const { slug } = req.params;
+  const userId = req.userId;
+  
+  const product = await ProductService.getProductBySlug(slug, userId);
+  
+  sendSuccess(res, 'Product retrieved successfully', product);
+});
+
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, limit } = req.query;
   
@@ -100,4 +109,18 @@ export const getTrendingProducts = catchAsync(async (req: Request, res: Response
   const products = await ProductService.getTrendingProducts(limitNum);
   
   sendSuccess(res, 'Trending products retrieved successfully', products);
+});
+
+export const getFeaturedProducts = catchAsync(async (req: Request, res: Response) => {
+  const { limit = '12' } = req.query;
+  
+  const result = await ProductService.getProducts({
+    badge: 'FEATURED',
+    limit: limit as string,
+    inStock: 'true',
+    sortBy: 'rating',
+    sortOrder: 'desc',
+  });
+  
+  sendSuccess(res, 'Featured products retrieved successfully', result.products);
 });

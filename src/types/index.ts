@@ -20,6 +20,7 @@ export interface ProductQuery extends PaginationQuery {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   inStock?: string;
+  badge?: string;
 }
 
 export interface ApiResponse<T = any> {
