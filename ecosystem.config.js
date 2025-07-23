@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'shopmart-api',
-    script: './dist/server.js',
+    script: './dist/app.js',
     instances: 'max',
     exec_mode: 'cluster',
     env: {
